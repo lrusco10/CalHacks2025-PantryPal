@@ -4,34 +4,20 @@
     "slug": "pantry-pal",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edecampo.pantrypal"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA"
       ],
       "package": "com.edecampo.pantrypal"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-barcode-scanner"
-    ],
+    "web": {},
     "extra": {
       "eas": {
         "projectId": "c0b69430-a4f8-4afe-98ef-90b32532d375"

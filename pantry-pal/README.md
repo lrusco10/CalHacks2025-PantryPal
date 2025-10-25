@@ -34,6 +34,12 @@ Install dependencies:
 npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs
 npx expo install react-native-screens react-native-safe-area-context react-native-gesture-handler react-native-reanimated react-native-vector-icons
 npx expo install @react-native-picker/picker
+npx expo install react-native-worklets
+```
+
+Load your claude api key with:
+```bash
+export claudeAPI="<api-key>"
 ```
 
 Then, start the development server with:
@@ -55,6 +61,11 @@ Login:
 ```bash
 eas login
 ```
+
+Add your claude api key by creating an environment variable called `claudeAPI`:
+```bash
+eas env:create
+``` 
 
 Configure with:
 
