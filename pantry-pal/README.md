@@ -33,6 +33,7 @@ Install dependencies:
 ```bash
 npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs
 npx expo install react-native-screens react-native-safe-area-context react-native-gesture-handler react-native-reanimated react-native-vector-icons
+npx expo install @react-native-picker/picker
 ```
 
 Then, start the development server with:

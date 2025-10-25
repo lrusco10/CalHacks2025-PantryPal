@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { processBarcodeScan } from './processBarcodeScan';
 
@@ -27,16 +27,28 @@ export default function QRScanner({ navigation }) {
     setScanned(true);
     setLoading(true);
 
-    const result = await processBarcodeScan(data, 0, units, true); // dry run
+    const result = await processBarcodeScan(data, 0, units, true); // dry run preview
     setPendingItem(result.item);
     setIsExisting(result.existing);
     setLoading(false);
   };
 
   const saveItem = async () => {
-    if (pendingItem) {
-      await processBarcodeScan(pendingItem.upc, quantity, units, false); // commit to pantry
-      navigation.goBack();
+    if (!pendingItem) return;
+    try {
+      setLoading(true);
+      await processBarcodeScan(pendingItem.upc, quantity, units, false); // commit to pantry.json
+
+      // (Optional) brief feedback
+      Alert.alert('Saved', 'Item saved to your pantry.');
+
+      // Give FS a tick to flush (usually not necessary, but it avoids racey refresh on very fast devices)
+      await new Promise(r => setTimeout(r, 100));
+
+      // Switch to the Pantry TAB (this screen is inside the Scanner stack → use parent navigator)
+      navigation.getParent()?.navigate('Pantry');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,13 +80,11 @@ export default function QRScanner({ navigation }) {
           {!isExisting ? (
             <>
               <Text style={styles.name}>{pendingItem.name}</Text>
-              <Text style={styles.desc}>{pendingItem.description}</Text>
+              {!!pendingItem.description && <Text style={styles.desc}>{pendingItem.description}</Text>}
               <Text style={styles.note}>New item detected — confirm details and save:</Text>
             </>
           ) : (
-            <Text style={styles.note}>
-              Item already exists — update quantity:
-            </Text>
+            <Text style={styles.note}>Item already exists — update quantity:</Text>
           )}
 
           <Text>Quantity:</Text>

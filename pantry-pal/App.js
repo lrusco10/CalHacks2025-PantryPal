@@ -4,12 +4,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import PantryScreen from './PantryScreen';
 import QRScan from './QRScan';
+import RecipeScreen from './RecipeScreen';  // 👈 new tab
 import { Ionicons } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Wrap QRScan inside a stack so it has its own header
+// Scanner gets its own stack
 function ScannerStack() {
   return (
     <Stack.Navigator>
@@ -34,6 +35,8 @@ export default function App() {
               iconName = 'list';
             } else if (route.name === 'Scanner') {
               iconName = 'camera';
+            } else if (route.name === 'Recipes') {
+              iconName = 'restaurant';
             }
             return <Ionicons name={iconName} size={size} color={color} />;
           },
@@ -48,6 +51,7 @@ export default function App() {
           component={ScannerStack}
           options={{ headerShown: false }}
         />
+        <Tab.Screen name="Recipes" component={RecipeScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
