@@ -12,6 +12,10 @@ import {
 import { loadPantry, savePantry } from './processBarcodeScan';
 import { useFocusEffect } from '@react-navigation/native';
 
+// Load API key from secrets.json file
+const secrets = require('./secrets.json');
+const CLAUDE_API_KEY = secrets.anthropic_api_key;
+
 export default function RecipeScreen() {
   const [pantry, setPantry] = useState({ pantry: { items: {} } });
   const [selected, setSelected] = useState({});
@@ -37,7 +41,75 @@ export default function RecipeScreen() {
     }));
   };
 
-  // Simulated AI call
+  // Call Claude API to generate recipe
+  const callClaudeAPI = async (chosenDetails) => {
+    const prompt = `You are a helpful recipe generator. Based on the following pantry items, create ONE recipe that uses some or all of these ingredients.
+
+Available items:
+${chosenDetails.map(item => `- ${item.name}: ${item.quantity} ${item.units}${item.brand ? ` (${item.brand})` : ''} [UPC: ${item.upc}]`).join('\n')}
+
+IMPORTANT RULES:
+1. Use ONLY the ingredients from the list above
+2. Do NOT use more of any ingredient than the quantity specified
+3. Use the EXACT same units (${item.units}) as shown in the list
+4. Return ONLY valid JSON, no other text
+
+Required JSON format:
+{
+  "title": "Recipe Name",
+  "steps": ["Step 1", "Step 2", "Step 3"],
+  "ingredients": [
+    {
+      "upc": "item_upc_code",
+      "name": "Item Name",
+      "required": 1.5,
+      "units": "cups"
+    }
+  ]
+}`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': CLAUDE_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20250929',
+          max_tokens: 2048,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const recipeText = data.content[0].text;
+      
+      // Extract JSON from response (in case Claude adds any extra text)
+      const jsonMatch = recipeText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in response');
+      }
+      
+      const recipe = JSON.parse(jsonMatch[0]);
+      return recipe;
+    } catch (error) {
+      console.error('Claude API Error:', error);
+      throw error;
+    }
+  };
+
+  // Generate recipe using Claude
   const generateRecipe = async () => {
     setLoading(true);
 
@@ -51,68 +123,40 @@ export default function RecipeScreen() {
     // Grab full item details
     const chosenDetails = chosenItems.map((code) => pantry.pantry.items[code]);
 
-    // --- FAKE AI RECIPE CALL ---
-    // Here’s where you would send chosenDetails to your AI API.
-    // Example payload:
-    // fetch("/my-ai-recipe", { method: "POST", body: JSON.stringify(chosenDetails) })
-    // The AI should return a JSON like:
-    // {
-    //   title: "Rice & Beans Bowl",
-    //   steps: ["Cook rice", "Mix beans", "Serve hot"],
-    //   ingredients: [
-    //     { upc: "123", name: "Rice", required: 1, units: "cup" },
-    //     { upc: "456", name: "Beans", required: 2, units: "cup" }
-    //   ]
-    // }
+    try {
+      // Call Claude API
+      const recipe = await callClaudeAPI(chosenDetails);
 
-    const recipe = {
-      title: 'Demo Recipe',
-      steps: [
-        'Cook the rice with water until fluffy.',
-        'Add beans and stir.',
-        'Serve with seasoning of choice.',
-      ],
-      ingredients: [
-        {
-          upc: chosenItems[0],
-          name: pantry.pantry.items[chosenItems[0]].name,
-          required: 1,
-          units: 'cup',
-        },
-        chosenItems[1]
-          ? {
-              upc: chosenItems[1],
-              name: pantry.pantry.items[chosenItems[1]].name,
-              required: 2,
-              units: 'cup',
-            }
-          : null,
-      ].filter(Boolean),
-    };
-    // ---------------------------
+      setLoading(false);
 
-    setLoading(false);
+      // Ask user to accept recipe
+      const ingredientList = recipe.ingredients
+        .map((ing) => `- ${ing.required} ${ing.units} ${ing.name}`)
+        .join('\n');
 
-    // Ask user to accept recipe
-    const ingredientList = recipe.ingredients
-      .map((ing) => `- ${ing.required} ${ing.units} ${ing.name}`)
-      .join('\n');
-
-    Alert.alert(
-      recipe.title,
-      `${ingredientList}\n\n${recipe.steps.join('\n')}`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Use Recipe',
-          onPress: () => applyRecipe(recipe.ingredients),
-        },
-      ],
-      { cancelable: true }
-    );
+      Alert.alert(
+        recipe.title,
+        `${ingredientList}\n\n${recipe.steps.join('\n')}`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Use Recipe',
+            onPress: () => applyRecipe(recipe.ingredients),
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (error) {
+      setLoading(false);
+      Alert.alert(
+        'Error',
+        'Failed to generate recipe. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   // Apply recipe: subtract ingredient quantities
