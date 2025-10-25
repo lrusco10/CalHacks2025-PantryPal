@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { processBarcodeScan } from './processBarcodeScan';
 
@@ -36,7 +36,8 @@ export default function QRScanner({ navigation }) {
   const saveItem = async () => {
     if (pendingItem) {
       await processBarcodeScan(pendingItem.upc, quantity, units, false); // commit
-      navigation.navigate('Pantry'); // ✅ Go straight to pantry tab
+      // ✅ Navigate straight back to Pantry tab
+      navigation.navigate('Pantry');
     }
   };
 
@@ -48,24 +49,8 @@ export default function QRScanner({ navigation }) {
     setIsExisting(false);
   };
 
-  // === DEV BUTTON HANDLER ===
-  const handleDevSkip = () => {
-    setScanned(true);
-    setPendingItem({
-      upc: '000000000000',
-      name: 'Dummy Item (DEV)',
-      description: 'This is a developer placeholder item.',
-    });
-    setIsExisting(false);
-  };
-
   return (
     <View style={{ flex: 1 }}>
-      {/* Tiny DEV button in corner */}
-      <TouchableOpacity style={styles.devButton} onPress={handleDevSkip}>
-        <Text style={styles.devText}>DEV</Text>
-      </TouchableOpacity>
-
       {!pendingItem && (
         <CameraView
           style={{ flex: 1 }}
@@ -118,15 +103,4 @@ const styles = StyleSheet.create({
   note: { marginBottom: 15, color: 'blue' },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 10 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  devButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 10,
-    backgroundColor: 'tomato',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  devText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 });
