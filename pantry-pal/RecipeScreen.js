@@ -51,8 +51,9 @@ ${chosenDetails.map(item => `- ${item.name}: ${item.quantity} ${item.units}${ite
 IMPORTANT RULES:
 1. Use ONLY the ingredients from the list above
 2. Do NOT use more of any ingredient than the quantity specified
-3. Use the EXACT same units (${item.units}) as shown in the list
+3. Use the EXACT same units provided in the list (for example: cups, tbsp, grams, etc.)
 4. Return ONLY valid JSON, no other text
+5. You may use fewer than the total quantity provided, depending on the recipe.
 
 Required JSON format:
 {
@@ -77,8 +78,8 @@ Required JSON format:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 2048,
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1024,
           messages: [
             {
               role: 'user',
@@ -93,14 +94,19 @@ Required JSON format:
       }
 
       const data = await response.json();
-      const recipeText = data.content[0].text;
-      
-      // Extract JSON from response (in case Claude adds any extra text)
-      const jsonMatch = recipeText.match(/\{[\s\S]*\}/);
+      const recipeText = data.content[0]?.text || '';
+
+      // Strip markdown code fences if present
+      let cleanedText = recipeText.trim()
+        .replace(/```json/g, '')
+        .replace(/```/g, '');
+
+      // Extract JSON safely
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No valid JSON found in response');
       }
-      
+
       const recipe = JSON.parse(jsonMatch[0]);
       return recipe;
     } catch (error) {

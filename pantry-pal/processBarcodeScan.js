@@ -67,7 +67,7 @@ export async function processBarcodeScan(rawCode, quantity = 1, units = "unit", 
     upc: code,
     name: product.name,
     description: product.description,
-    brand: product.brand,         // ✅ stored
+    brand: product.brand,         
     images: product.images,
     quantity: Number(quantity),
     units,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { Text, View, Button, StyleSheet, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { processBarcodeScan } from './processBarcodeScan';
 
@@ -27,28 +27,16 @@ export default function QRScanner({ navigation }) {
     setScanned(true);
     setLoading(true);
 
-    const result = await processBarcodeScan(data, 0, units, true); // dry run preview
+    const result = await processBarcodeScan(data, 0, units, true); // dry run
     setPendingItem(result.item);
     setIsExisting(result.existing);
     setLoading(false);
   };
 
   const saveItem = async () => {
-    if (!pendingItem) return;
-    try {
-      setLoading(true);
-      await processBarcodeScan(pendingItem.upc, quantity, units, false); // commit to pantry.json
-
-      // (Optional) brief feedback
-      Alert.alert('Saved', 'Item saved to your pantry.');
-
-      // Give FS a tick to flush (usually not necessary, but it avoids racey refresh on very fast devices)
-      await new Promise(r => setTimeout(r, 100));
-
-      // Switch to the Pantry TAB (this screen is inside the Scanner stack → use parent navigator)
-      navigation.getParent()?.navigate('Pantry');
-    } finally {
-      setLoading(false);
+    if (pendingItem) {
+      await processBarcodeScan(pendingItem.upc, quantity, units, false); // commit
+      navigation.navigate('Pantry'); // ✅ Go straight to pantry tab
     }
   };
 
@@ -60,8 +48,24 @@ export default function QRScanner({ navigation }) {
     setIsExisting(false);
   };
 
+  // === DEV BUTTON HANDLER ===
+  const handleDevSkip = () => {
+    setScanned(true);
+    setPendingItem({
+      upc: '000000000000',
+      name: 'Dummy Item (DEV)',
+      description: 'This is a developer placeholder item.',
+    });
+    setIsExisting(false);
+  };
+
   return (
     <View style={{ flex: 1 }}>
+      {/* Tiny DEV button in corner */}
+      <TouchableOpacity style={styles.devButton} onPress={handleDevSkip}>
+        <Text style={styles.devText}>DEV</Text>
+      </TouchableOpacity>
+
       {!pendingItem && (
         <CameraView
           style={{ flex: 1 }}
@@ -80,7 +84,7 @@ export default function QRScanner({ navigation }) {
           {!isExisting ? (
             <>
               <Text style={styles.name}>{pendingItem.name}</Text>
-              {!!pendingItem.description && <Text style={styles.desc}>{pendingItem.description}</Text>}
+              <Text style={styles.desc}>{pendingItem.description}</Text>
               <Text style={styles.note}>New item detected — confirm details and save:</Text>
             </>
           ) : (
@@ -114,4 +118,15 @@ const styles = StyleSheet.create({
   note: { marginBottom: 15, color: 'blue' },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 8, marginBottom: 10 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  devButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    backgroundColor: 'tomato',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  devText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 });
