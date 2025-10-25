@@ -1,0 +1,16 @@
+{
+  "pantry": {
+    "items": {
+      "0123456789": {
+        "name": "Rice",
+        "units": "lb",
+        "quantity": 0
+      },
+      "9876543210": {
+        "name": "Beans",
+        "units": "can",
+        "quantity": 0
+      }
+    }
+  }
+}
