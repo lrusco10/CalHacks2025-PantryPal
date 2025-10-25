@@ -12,8 +12,7 @@ import {
   TextInput,
 } from 'react-native';
 import { loadPantry, savePantry, resetPantry } from './processBarcodeScan';
-import { useIsFocused } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function PantryScreen() {
   const [pantry, setPantry] = useState({ pantry: { items: {} } });
@@ -22,23 +21,23 @@ export default function PantryScreen() {
   const [editUnits, setEditUnits] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const isFocused = useIsFocused();
 
-  useEffect(() => {
-    if (isFocused) {
+  // Reload pantry whenever screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
       (async () => {
         const data = await loadPantry();
         setPantry(data);
       })();
-    }
-  }, [isFocused]);
+    }, [])
+  );
 
   // Delete item
   const deleteItem = async (upc) => {
     const newPantry = { ...pantry };
     delete newPantry.pantry.items[upc];
     await savePantry(newPantry);
-    setPantry(newPantry);
+    setPantry(await loadPantry());
   };
 
   // Open edit modal
@@ -55,7 +54,7 @@ export default function PantryScreen() {
     newPantry.pantry.items[editingItem.upc].quantity = Number(editQuantity);
     newPantry.pantry.items[editingItem.upc].units = editUnits;
     await savePantry(newPantry);
-    setPantry(newPantry);
+    setPantry(await loadPantry());
     setEditingItem(null);
   };
 
@@ -106,7 +105,7 @@ export default function PantryScreen() {
   return (
     <View style={{ flex: 1, padding: 10 }}>
       {/* Top Controls */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+      <View style={styles.topControls}>
         <Button title="Reset Pantry" onPress={handleReset} />
         <TextInput
           style={styles.searchBar}
@@ -114,15 +113,29 @@ export default function PantryScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <Picker
-          selectedValue={sortBy}
-          style={styles.picker}
-          onValueChange={(val) => setSortBy(val)}
-        >
-          <Picker.Item label="Name" value="name" />
-          <Picker.Item label="Quantity" value="quantity" />
-          <Picker.Item label="Brand" value="brand" />
-        </Picker>
+      </View>
+
+      {/* Sort Buttons */}
+      <View style={styles.sortRow}>
+        {['name', 'quantity', 'brand'].map((val) => (
+          <TouchableOpacity
+            key={val}
+            style={[
+              styles.sortButton,
+              sortBy === val ? styles.sortButtonActive : null,
+            ]}
+            onPress={() => setSortBy(val)}
+          >
+            <Text
+              style={[
+                styles.sortButtonText,
+                sortBy === val ? { color: '#fff' } : null,
+              ]}
+            >
+              {val.charAt(0).toUpperCase() + val.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Pantry List */}
@@ -177,9 +190,7 @@ export default function PantryScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Edit {editingItem?.name}
-            </Text>
+            <Text style={styles.modalTitle}>Edit {editingItem?.name}</Text>
             <TextInput
               style={styles.input}
               value={editQuantity}
@@ -193,7 +204,6 @@ export default function PantryScreen() {
               onChangeText={setEditUnits}
               placeholder="Units"
             />
-
             <View style={styles.modalActions}>
               <Button title="Cancel" onPress={() => setEditingItem(null)} />
               <Button title="Save" onPress={saveEdit} />
@@ -206,18 +216,38 @@ export default function PantryScreen() {
 }
 
 const styles = StyleSheet.create({
+  topControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    alignItems: 'center',
+  },
   searchBar: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#ccc',
-    marginHorizontal: 5,
+    marginLeft: 10,
     paddingHorizontal: 8,
     borderRadius: 6,
     height: 40,
   },
-  picker: {
-    width: 120,
-    height: 40,
+  sortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  sortButton: {
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  sortButtonActive: {
+    backgroundColor: '#4CAF50',
+  },
+  sortButtonText: {
+    fontWeight: '600',
+    color: '#000',
   },
   itemRow: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,27 @@ import {
   TouchableOpacity,
   Alert,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { loadPantry, savePantry } from './processBarcodeScan';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function RecipeScreen() {
   const [pantry, setPantry] = useState({ pantry: { items: {} } });
   const [selected, setSelected] = useState({});
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('name');
 
-  // Load pantry on mount
-  useEffect(() => {
-    (async () => {
-      const data = await loadPantry();
-      setPantry(data);
-    })();
-  }, []);
+  // Reload pantry every time the screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      (async () => {
+        const data = await loadPantry();
+        setPantry(data);
+      })();
+    }, [])
+  );
 
   // Toggle checkbox
   const toggleSelect = (upc) => {
@@ -124,16 +130,71 @@ export default function RecipeScreen() {
       }
     });
     await savePantry(newPantry);
-    setPantry(newPantry);
+    setPantry(await loadPantry()); // reload to stay fresh
     setSelected({});
+  };
+
+  // Filter + sort items
+  const getFilteredAndSortedItems = () => {
+    const items = Object.entries(pantry.pantry.items).filter(
+      ([, item]) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.brand && item.brand.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    items.sort((a, b) => {
+      const itemA = a[1];
+      const itemB = b[1];
+      if (sortBy === 'name') {
+        return itemA.name.localeCompare(itemB.name);
+      } else if (sortBy === 'quantity') {
+        return itemB.quantity - itemA.quantity;
+      } else if (sortBy === 'brand') {
+        return (itemA.brand || '').localeCompare(itemB.brand || '');
+      }
+      return 0;
+    });
+
+    return items;
   };
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
       <Button title="Create Recipe" onPress={generateRecipe} disabled={loading} />
 
+      {/* Search + Sort Controls */}
+      <View style={styles.topControls}>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <View style={styles.sortRow}>
+          {['name', 'quantity', 'brand'].map((val) => (
+            <TouchableOpacity
+              key={val}
+              style={[
+                styles.sortButton,
+                sortBy === val ? styles.sortButtonActive : null,
+              ]}
+              onPress={() => setSortBy(val)}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortBy === val ? { color: '#fff' } : null,
+                ]}
+              >
+                {val.charAt(0).toUpperCase() + val.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <ScrollView style={{ marginTop: 15 }}>
-        {Object.entries(pantry.pantry.items).map(([code, item]) => (
+        {getFilteredAndSortedItems().map(([code, item]) => (
           <TouchableOpacity
             key={code}
             style={[
@@ -161,6 +222,35 @@ export default function RecipeScreen() {
 }
 
 const styles = StyleSheet.create({
+  topControls: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  searchBar: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    height: 40,
+    marginBottom: 10,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sortButton: {
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  sortButtonActive: {
+    backgroundColor: '#4CAF50',
+  },
+  sortButtonText: {
+    fontWeight: '600',
+    color: '#000',
+  },
   itemRow: {
     padding: 10,
     marginVertical: 5,
