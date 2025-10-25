@@ -8,13 +8,36 @@ import {
   Alert,
   StyleSheet,
   TextInput,
+  Modal,
 } from 'react-native';
 import { loadPantry, savePantry } from './processBarcodeScan';
 import { useFocusEffect } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Load API key from secrets.json file
 const secrets = require('./secrets.json');
 const CLAUDE_API_KEY = secrets.anthropic_api_key;
+
+const recipesFileUri = FileSystem.documentDirectory + 'pastRecipes.json';
+
+// Load past recipes from file
+const loadPastRecipes = async () => {
+  try {
+    const data = await FileSystem.readAsStringAsync(recipesFileUri);
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+};
+
+// Save past recipes to file
+const savePastRecipes = async (recipes) => {
+  try {
+    await FileSystem.writeAsStringAsync(recipesFileUri, JSON.stringify(recipes, null, 2));
+  } catch (error) {
+    console.error('Error saving past recipes:', error);
+  }
+};
 
 export default function RecipeScreen() {
   const [pantry, setPantry] = useState({ pantry: { items: {} } });
@@ -22,6 +45,8 @@ export default function RecipeScreen() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [showPastRecipes, setShowPastRecipes] = useState(false);
+  const [pastRecipes, setPastRecipes] = useState([]);
 
   // Reload pantry every time the screen is focused
   useFocusEffect(
@@ -29,6 +54,8 @@ export default function RecipeScreen() {
       (async () => {
         const data = await loadPantry();
         setPantry(data);
+        const recipes = await loadPastRecipes();
+        setPastRecipes(recipes);
       })();
     }, [])
   );
@@ -150,7 +177,7 @@ Required JSON format:
           },
           {
             text: 'Use Recipe',
-            onPress: () => applyRecipe(recipe.ingredients),
+            onPress: () => applyRecipe(recipe),
           },
         ],
         { cancelable: true }
@@ -165,10 +192,10 @@ Required JSON format:
     }
   };
 
-  // Apply recipe: subtract ingredient quantities
-  const applyRecipe = async (ingredients) => {
+  // Apply recipe: subtract ingredient quantities and save to history
+  const applyRecipe = async (recipe) => {
     const newPantry = { ...pantry };
-    ingredients.forEach((ing) => {
+    recipe.ingredients.forEach((ing) => {
       if (newPantry.pantry.items[ing.upc]) {
         // subtract the recipe-required amount
         newPantry.pantry.items[ing.upc].quantity -= ing.required;
@@ -182,6 +209,54 @@ Required JSON format:
     await savePantry(newPantry);
     setPantry(await loadPantry()); // reload to stay fresh
     setSelected({});
+
+    // Save recipe to history with timestamp
+    const recipeWithTimestamp = {
+      ...recipe,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    const updatedRecipes = [recipeWithTimestamp, ...pastRecipes];
+    await savePastRecipes(updatedRecipes);
+    setPastRecipes(updatedRecipes);
+  };
+
+  // Delete a past recipe
+  const deleteRecipe = async (recipeId) => {
+    Alert.alert(
+      'Delete Recipe',
+      'Are you sure you want to delete this recipe?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const updatedRecipes = pastRecipes.filter((r) => r.id !== recipeId);
+            await savePastRecipes(updatedRecipes);
+            setPastRecipes(updatedRecipes);
+          },
+        },
+      ]
+    );
+  };
+
+  // View a past recipe in detail
+  const viewRecipe = (recipe) => {
+    const ingredientList = recipe.ingredients
+      .map((ing) => `- ${ing.required} ${ing.units} ${ing.name}`)
+      .join('\n');
+
+    const dateStr = new Date(recipe.createdAt).toLocaleDateString();
+
+    Alert.alert(
+      recipe.title,
+      `Created: ${dateStr}\n\nIngredients:\n${ingredientList}\n\nSteps:\n${recipe.steps.map((step, idx) => `${idx + 1}. ${step}`).join('\n')}`,
+      [{ text: 'OK' }]
+    );
   };
 
   // Filter + sort items
@@ -210,7 +285,18 @@ Required JSON format:
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      <Button title="Create Recipe" onPress={generateRecipe} disabled={loading} />
+      <View style={styles.buttonRow}>
+        <View style={styles.buttonContainer}>
+          <Button title="Create Recipe" onPress={generateRecipe} disabled={loading} />
+        </View>
+        <View style={styles.buttonContainer}>
+          <Button
+            title="Past Recipes"
+            onPress={() => setShowPastRecipes(true)}
+            color="#2196F3"
+          />
+        </View>
+      </View>
 
       {/* Search + Sort Controls */}
       <View style={styles.topControls}>
@@ -267,11 +353,59 @@ Required JSON format:
           </Text>
         )}
       </ScrollView>
+
+      {/* Past Recipes Modal */}
+      <Modal
+        visible={showPastRecipes}
+        animationType="slide"
+        onRequestClose={() => setShowPastRecipes(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Past Recipes</Text>
+            <TouchableOpacity onPress={() => setShowPastRecipes(false)}>
+              <Text style={styles.closeButton}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {pastRecipes.length === 0 ? (
+              <Text style={styles.emptyText}>No past recipes yet.</Text>
+            ) : (
+              pastRecipes.map((recipe) => (
+                <View key={recipe.id} style={styles.recipeCard}>
+                  <TouchableOpacity onPress={() => viewRecipe(recipe)}>
+                    <Text style={styles.recipeTitle}>{recipe.title}</Text>
+                    <Text style={styles.recipeDate}>
+                      {new Date(recipe.createdAt).toLocaleDateString()}
+                    </Text>
+                    <Text style={styles.recipeIngredients}>
+                      {recipe.ingredients.length} ingredients
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => deleteRecipe(recipe.id)}
+                  >
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  buttonContainer: {
+    flex: 1,
+  },
   topControls: {
     marginTop: 10,
     marginBottom: 10,
@@ -320,5 +454,70 @@ const styles = StyleSheet.create({
   itemDesc: {
     fontSize: 12,
     color: '#666',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: '#666',
+  },
+  recipeCard: {
+    backgroundColor: '#f9f9f9',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  recipeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  recipeDate: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  recipeIngredients: {
+    fontSize: 14,
+    color: '#333',
+  },
+  deleteButton: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#ff4444',
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

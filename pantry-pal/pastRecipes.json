@@ -1,0 +1,122 @@
+[
+  {
+    "title": "Classic Tomato Pasta",
+    "steps": [
+      "Bring a large pot of salted water to boil and cook the pasta according to package directions.",
+      "While pasta cooks, heat olive oil in a large skillet over medium heat.",
+      "Add diced tomatoes with their juices and season with salt and pepper.",
+      "Simmer the tomato sauce for 10-12 minutes until slightly thickened.",
+      "Drain the pasta and toss with the tomato sauce.",
+      "Serve hot with grated parmesan cheese on top."
+    ],
+    "ingredients": [
+      {
+        "upc": "041130003707",
+        "name": "Spaghetti Pasta",
+        "required": 2,
+        "units": "cups"
+      },
+      {
+        "upc": "051000012937",
+        "name": "Diced Tomatoes",
+        "required": 1,
+        "units": "can"
+      },
+      {
+        "upc": "041303020036",
+        "name": "Olive Oil",
+        "required": 2,
+        "units": "tbsp"
+      },
+      {
+        "upc": "021130126316",
+        "name": "Parmesan Cheese",
+        "required": 0.25,
+        "units": "cup"
+      }
+    ],
+    "id": "1729876543210",
+    "createdAt": "2025-10-20T14:30:00.000Z"
+  },
+  {
+    "title": "Scrambled Eggs with Toast",
+    "steps": [
+      "Crack eggs into a bowl and whisk together with milk, salt, and pepper.",
+      "Heat butter in a non-stick skillet over medium-low heat.",
+      "Pour in the egg mixture and let sit for 20 seconds.",
+      "Gently stir the eggs with a spatula, creating soft curds.",
+      "Remove from heat when eggs are still slightly wet, as they will continue cooking.",
+      "Toast the bread slices until golden brown.",
+      "Serve eggs on toast and enjoy immediately."
+    ],
+    "ingredients": [
+      {
+        "upc": "007038303015",
+        "name": "Large Eggs",
+        "required": 3,
+        "units": "eggs"
+      },
+      {
+        "upc": "004122003010",
+        "name": "White Bread",
+        "required": 2,
+        "units": "slices"
+      },
+      {
+        "upc": "002113000697",
+        "name": "Butter",
+        "required": 1,
+        "units": "tbsp"
+      },
+      {
+        "upc": "004000003302",
+        "name": "Whole Milk",
+        "required": 2,
+        "units": "tbsp"
+      }
+    ],
+    "id": "1729790123456",
+    "createdAt": "2025-10-18T08:15:00.000Z"
+  },
+  {
+    "title": "Chicken and Rice Bowl",
+    "steps": [
+      "Season chicken breast with salt, pepper, and garlic powder.",
+      "Heat olive oil in a skillet over medium-high heat.",
+      "Cook chicken for 6-7 minutes per side until golden and cooked through.",
+      "Remove chicken and let rest for 5 minutes, then slice.",
+      "Meanwhile, cook rice according to package instructions.",
+      "In the same skillet, sauté broccoli florets for 3-4 minutes.",
+      "Assemble bowls with rice, sliced chicken, and broccoli.",
+      "Drizzle with soy sauce and serve."
+    ],
+    "ingredients": [
+      {
+        "upc": "002113026971",
+        "name": "Chicken Breast",
+        "required": 1,
+        "units": "lb"
+      },
+      {
+        "upc": "003638300209",
+        "name": "White Rice",
+        "required": 1,
+        "units": "cup"
+      },
+      {
+        "upc": "003338322504",
+        "name": "Broccoli Florets",
+        "required": 2,
+        "units": "cups"
+      },
+      {
+        "upc": "004105300209",
+        "name": "Soy Sauce",
+        "required": 2,
+        "units": "tbsp"
+      }
+    ],
+    "id": "1729703765432",
+    "createdAt": "2025-10-15T18:45:00.000Z"
+  }
+]
