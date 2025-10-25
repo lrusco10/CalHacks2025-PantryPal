@@ -14,9 +14,13 @@ import { loadPantry, savePantry } from './processBarcodeScan';
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 
-// Load API key from secrets.json file
-const secrets = require('./secrets.json');
-const CLAUDE_API_KEY = secrets.anthropic_api_key;
+import Constants from 'expo-constants';
+
+const CLAUDE_API_KEY = Constants.expoConfig.extra.claudeAPI;
+
+console.log("Loaded Claude key:", CLAUDE_API_KEY ? "exists" : "missing");
+
+
 
 const recipesFileUri = FileSystem.documentDirectory + 'pastRecipes.json';
 
