@@ -1,13 +1,18 @@
+// processBarcodeScan.js
+// Keeps pantry.json in the app sandbox, supports dry runs, UPCItemDB lookup,
+// manual name override, and exposes resetPantry().
+
 import * as FileSystem from 'expo-file-system/legacy';
 
 const fileUri = FileSystem.documentDirectory + 'pantry.json';
 
 // --- Normalize UPC/EAN ---
 function normalizeUPC(code) {
-  if (code.length === 13 && code.startsWith("0")) {
-    return code.substring(1);
-  }
-  return code;
+  if (!code) return '';
+  const s = String(code).trim();
+  // Treat EAN-13 with leading 0 as UPC-A (common case)
+  if (s.length === 13 && s.startsWith('0')) return s.substring(1);
+  return s;
 }
 
 // --- Pantry JSON Handling ---
@@ -30,44 +35,69 @@ async function lookupProduct(upc) {
     const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upc}`);
     const json = await res.json();
 
-    if (json.code === "OK" && json.total > 0) {
+    if (json && json.code === 'OK' && json.total > 0 && Array.isArray(json.items) && json.items.length > 0) {
       const item = json.items[0];
       return {
+        found: true,
         name: item.title || upc,
-        description: item.description || "",
-        brand: item.brand || "",        // ✅ include brand safely
-        images: item.images || [],
+        description: item.description || '',
+        brand: item.brand || '',
+        images: Array.isArray(item.images) ? item.images : [],
       };
     }
-    return { name: upc, description: "", brand: "", images: [] };
+
+    // Not found in API
+    return { found: false, name: upc, description: '', brand: '', images: [] };
   } catch (e) {
-    console.warn("UPC lookup failed", e);
-    return { name: upc, description: "", brand: "", images: [] };
+    console.warn('UPC lookup failed', e);
+    return { found: false, name: upc, description: '', brand: '', images: [] };
   }
 }
 
-// --- Main Scan Handler ---
-// dryRun = true → preview only, don't save
-export async function processBarcodeScan(rawCode, quantity = 1, units = "unit", dryRun = false) {
+/**
+ * Main handler
+ * @param {string} rawCode - scanned barcode
+ * @param {number} quantity - quantity to add
+ * @param {string} units - units label
+ * @param {boolean} dryRun - if true, don't save; return preview
+ * @param {{manualName?: string}} opts - optional overrides
+ * @returns {{pantry: any, existing: boolean, found: boolean, item: any}}
+ */
+export async function processBarcodeScan(
+  rawCode,
+  quantity = 1,
+  units = 'unit',
+  dryRun = false,
+  opts = {}
+) {
   const code = normalizeUPC(rawCode);
   const pantry = await loadPantry();
 
-  // If item already exists
+  // If it already exists, just update quantity (unless dryRun)
   if (pantry.pantry.items[code]) {
     if (!dryRun) {
       pantry.pantry.items[code].quantity += Number(quantity);
       await savePantry(pantry);
     }
-    return { pantry, existing: true, item: pantry.pantry.items[code] };
+    return {
+      pantry,
+      existing: true,
+      found: true, // it exists in our db
+      item: pantry.pantry.items[code],
+    };
   }
 
-  // Otherwise fetch from UPCItemDB
+  // Otherwise look it up
   const product = await lookupProduct(code);
+
+  const nameOverride = (opts.manualName || '').trim();
+  const finalName = nameOverride || product.name;
+
   const newItem = {
     upc: code,
-    name: product.name,
+    name: finalName,
     description: product.description,
-    brand: product.brand,         
+    brand: product.brand,
     images: product.images,
     quantity: Number(quantity),
     units,
@@ -78,7 +108,12 @@ export async function processBarcodeScan(rawCode, quantity = 1, units = "unit", 
     await savePantry(pantry);
   }
 
-  return { pantry, existing: false, item: newItem };
+  return {
+    pantry,
+    existing: false,
+    found: product.found || !!nameOverride, // treat as found if user provided a name
+    item: newItem,
+  };
 }
 
 // --- Reset Pantry ---
